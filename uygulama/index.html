@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sesli Denetim Raporu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: one narrow working column (phone first), sticky bar on top; findings are stacked cards with a severity stripe. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#16212c; --muted:#5b6876; --line:#d5dbe2;
+  --accent:#d9480f; --accent-ink:#ffffff; --navy:#1c2e40; --navy-ink:#e8eef4; --soft:#f6f8fa;
+  --crit:#c92a2a; --major:#e8590c; --minor:#b08900; --obs:#56708a; --ok:#2b8a3e;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f161d; --surface:#17212b; --ink:#e4eaf0; --muted:#97a5b3; --line:#2b3a48;
+  --accent:#ff7a3d; --accent-ink:#1a0d05; --navy:#0b1219; --navy-ink:#dfe8f0; --soft:#1d2934;
+  --crit:#ff6b6b; --major:#ff922b; --minor:#e6c34a; --obs:#8fa7bf; --ok:#51cf66; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0f161d; --surface:#17212b; --ink:#e4eaf0; --muted:#97a5b3; --line:#2b3a48;
+  --accent:#ff7a3d; --accent-ink:#1a0d05; --navy:#0b1219; --navy-ink:#dfe8f0; --soft:#1d2934;
+  --crit:#ff6b6b; --major:#ff922b; --minor:#e6c34a; --obs:#8fa7bf; --ok:#51cf66; color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 var(--body)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:.01em;text-wrap:balance;margin:0}
+.bar{position:sticky;top:0;z-index:5;background:var(--navy);color:var(--navy-ink);display:flex;align-items:center;gap:12px;padding:calc(10px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 10px calc(16px + env(safe-area-inset-left))}
+.bar .brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.bar .brand b{font:600 20px/1 var(--display);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .mark{width:26px;height:26px;flex:none}
+.bar a,.bar button{color:var(--navy-ink)}
+.seg{display:inline-flex;border:1px solid currentColor;border-radius:6px;overflow:hidden;opacity:.95}
+.seg button{background:none;border:0;padding:4px 10px;font:600 13px/1 var(--body);cursor:pointer;min-height:28px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+main{max-width:900px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) 16px max(16px,env(safe-area-inset-left));display:grid;gap:16px}
+.note{font-size:14px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;min-height:40px;font-weight:600;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:none}
+.btn.sm{min-height:32px;padding:4px 10px;font-size:14px}
+.btn.danger{color:var(--crit)}
+.btn[disabled]{opacity:.5;cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.spacer{flex:1}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+label.f input,label.f select,label.f textarea,.inp{width:100%;border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:8px 10px;color:var(--ink);font-size:16px}
+textarea{resize:vertical}
+.hero{display:grid;gap:6px}
+.hero h1{font-size:34px;line-height:1.05}
+.hero p{margin:0;color:var(--muted);max-width:62ch}
+.list{display:grid;gap:10px}
+.icard{display:grid;grid-template-columns:1fr auto;gap:4px 12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;cursor:pointer;text-align:left;width:100%}
+.icard:hover{border-color:var(--muted)}
+.icard h3{font-size:22px}
+.icard .meta{font-size:14px;color:var(--muted)}
+.counts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:start}
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font:600 12px/1.6 var(--body);border:1px solid currentColor;white-space:nowrap}
+.pill.crit{color:var(--crit)} .pill.major{color:var(--major)} .pill.minor{color:var(--minor)} .pill.obs{color:var(--obs)} .pill.ex{color:var(--muted);border-style:dashed}
+.code{font:500 13px/1.4 var(--mono)}
+.fcard{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--obs);border-radius:10px;padding:14px;display:grid;gap:12px}
+.fcard.crit{border-left-color:var(--crit)} .fcard.major{border-left-color:var(--major)} .fcard.minor{border-left-color:var(--minor)} .fcard.none{border-left-color:var(--line)}
+.fhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.fnum{font:700 22px/1 var(--display);color:var(--muted);min-width:2.2em}
+.ftitle{font:600 19px/1.2 var(--display);flex:1;min-width:10em}
+.photos{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.ph{position:relative;flex:none}
+.ph img{display:block;height:110px;width:auto;max-width:200px;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:var(--soft)}
+.ph button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;line-height:1}
+.addph{height:110px;width:110px;flex:none;border:2px dashed var(--line);border-radius:6px;display:grid;place-items:center;text-align:center;font-size:13px;color:var(--muted);cursor:pointer;padding:6px}
+.addph:hover{border-color:var(--accent);color:var(--accent)}
+.addph input{display:none}
+.say{display:grid;gap:6px}
+.say .top{display:flex;align-items:center;gap:8px}
+.mic{width:48px;height:48px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);cursor:pointer;display:grid;place-items:center;flex:none}
+.mic svg{width:22px;height:22px}
+.mic.on{background:var(--crit);color:#fff;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--crit) 55%,transparent)}50%{box-shadow:0 0 0 10px transparent}}
+@media (prefers-reduced-motion:reduce){.mic.on{animation:none}}
+.partial{font-style:italic;color:var(--muted);min-height:1.2em;font-size:14px}
+.ai{display:grid;gap:10px;border-top:1px dashed var(--line);padding-top:12px}
+.sevs{display:flex;gap:6px;flex-wrap:wrap}
+.sevs button{border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:4px 12px;cursor:pointer;font:600 13px/1.4 var(--body);min-height:32px}
+.sevs button[aria-pressed="true"].crit{background:var(--crit);border-color:var(--crit);color:#fff}
+.sevs button[aria-pressed="true"].major{background:var(--major);border-color:var(--major);color:#fff}
+.sevs button[aria-pressed="true"].minor{background:var(--minor);border-color:var(--minor);color:#fff}
+.sevs button[aria-pressed="true"].obs{background:var(--obs);border-color:var(--obs);color:#fff}
+.busy{color:var(--accent);font-weight:600;font-size:14px}
+.err{color:var(--crit);font-size:14px}
+.stale{font-size:13px;color:var(--minor)}
+.vrow{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;border-top:1px solid var(--line);padding-top:10px}
+.vrow img,.vrow .nophoto{width:64px;height:48px;object-fit:cover;border-radius:4px;border:1px solid var(--line);background:var(--soft);display:block}
+@media (max-width:520px){.vrow{grid-template-columns:56px 1fr}.vrow>.row{grid-column:1/-1}}
+.seen{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:15px}
+.seen.busy{color:var(--accent);font-weight:600}
+label.f.unsure input{border-color:var(--minor);background:color-mix(in srgb,var(--minor) 12%,var(--soft))}
+.unote{color:var(--minor);font-weight:600}
+.tabs{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.tabs button{border:0;background:var(--soft);padding:3px 10px;font:600 13px/1.5 var(--body);cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--navy);color:var(--navy-ink)}
+.stick{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%);padding:18px 0 calc(8px + env(safe-area-inset-bottom));display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--navy);color:var(--navy-ink);padding:10px 16px;border-radius:8px;z-index:20;max-width:90vw;font-size:14px}
+.empty{border:2px dashed var(--line);border-radius:10px;padding:24px;text-align:center;color:var(--muted)}
+/* report */
+.rep{background:#fff;color:#16212c;border-radius:4px;padding:28px;display:grid;gap:18px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.rep h1{font-size:28px;color:#1c2e40;text-transform:uppercase;letter-spacing:.05em}
+.rep .rh{display:flex;justify-content:space-between;gap:12px;border-bottom:3px solid #d9480f;padding-bottom:10px;align-items:end;flex-wrap:wrap}
+.rep table{border-collapse:collapse;width:100%;font-size:14px}
+.rep td,.rep th{border:1px solid #c9d1da;padding:6px 8px;text-align:left;vertical-align:top}
+.rep th{background:#eef1f4;width:32%;font-weight:600}
+.rep h2{font-size:20px;color:#1c2e40;border-bottom:1px solid #c9d1da;padding-bottom:4px}
+.rep .rf{display:grid;gap:6px;border:1px solid #c9d1da;border-left:5px solid #56708a;padding:12px;break-inside:avoid}
+.rep .rf.crit{border-left-color:#c92a2a}.rep .rf.major{border-left-color:#e8590c}.rep .rf.minor{border-left-color:#b08900}
+.rep .rf h3{font-size:18px}
+.rep .rf p{margin:0;font-size:14px}
+.rep .rf .lbl{font-weight:600;color:#1c2e40}
+.rep .rphotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.rep .rphotos img{width:100%;height:150px;object-fit:cover;border:1px solid #c9d1da}
+.rep .sig{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:20px;font-size:14px}
+.rep .sig div{border-top:1px solid #16212c;padding-top:6px}
+.rep .tot{display:flex;gap:8px;flex-wrap:wrap}
+.rep .tot span{border:1px solid #c9d1da;padding:4px 10px;font-size:13px;font-weight:600}
+.rep-wrap{overflow-x:auto}
+@media (pointer:coarse){.btn{min-height:44px}.btn.sm{min-height:40px}.sevs button,.tabs button{min-height:40px;padding-left:14px;padding-right:14px}.ph button{width:34px;height:34px}.mic{width:56px;height:56px}}
+.addph.cam{border-style:solid;border-color:var(--accent);color:var(--accent);font-weight:600}
+.kbd{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted);background:var(--soft);border-radius:8px;padding:8px 10px}
+.kbd b{font-size:20px}
+@media (max-width:520px){.hero h1{font-size:28px}.rep{padding:16px}.rep .sig{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="11" y="3" width="10" height="17" rx="5" fill="currentColor"/><path d="M6 15a10 10 0 0 0 20 0" stroke="currentColor" stroke-width="2.4" fill="none"/><path d="M16 25v4M10 29h12" stroke="#ff7a3d" stroke-width="2.4"/></svg>
+    <b id="brandName">Sesli Denetim Raporu</b>
+  </div>
+  <div class="seg" role="group" aria-label="Arayüz dili / Interface language">
+    <button type="button" id="uiTr" data-ui="tr">TR</button><button type="button" id="uiEn" data-ui="en">EN</button>
+  </div>
+</header>
+<main id="main" aria-live="polite"></main>
+<script>
+"use strict";
+/* ---------- i18n: interface dictionary. Add a language by adding a key. ---------- */
+const T={
+tr:{brand:"Sesli Denetim Raporu",heroT:"Gemide gör, çek, anlat. Rapor hazır.",heroP:"Her eksikliği fotoğraflayın ve sesli anlatın. Claude anlatımı düzenli bir bulguya çevirir; raporu Türkçe ya da İngilizce alırsınız.",
+newInsp:"Yeni denetim",inspections:"Denetimler",noInsp:"Henüz denetim yok. Yeni denetim başlatın.",loading:"Yükleniyor…",offline:"Veriye şu an ulaşılamıyor; bağlantı gelince liste kendiliğinden yenilenir.",
+example:"Örnek",findings:"bulgu",vessel:"Gemi adı",imo:"IMO no",flag:"Bayrak",vtype:"Gemi tipi",port:"Liman",date:"Tarih",itype:"Denetim türü",inspector:"Denetçi",master:"Kaptan",
+back:"← Denetimler",details:"Denetim bilgileri",addFinding:"+ Bulgu ekle",addPhoto:"Fotoğraf çek / seç",narr:"Anlatım",narrPh:"Gördüğünüzü anlatın: nerede, ne var, ne olmalı…",micStart:"Anlatmaya başla",micStop:"Durdur",micBusy:"Önce açık olan kaydı durdurun.",
+micNone:"Sesli giriş bu görünümde yok. Telefon klavyesindeki mikrofonla da anlatabilirsiniz.",micDenied:"Mikrofon izni verilmedi; metni yazabilirsiniz.",micErr:"Sesli giriş başlatılamadı",listening:"Dinliyorum… konuşun.",
+writeUp:"Claude ile bulguya çevir",rewrite:"Yeniden yaz",thinking:"Claude fotoğrafa ve anlatıma bakıyor…",aiNone:"Claude bu görünümde kullanılamıyor; alanları elle doldurun.",
+title:"Başlık",desc:"Açıklama",action:"Düzeltici faaliyet",area:"Bölüm",sev:"Önem",refs:"İlgili kural",psc:"PSC kodu",due:"Kapanış tarihi",editLang:"Düzenleme dili",
+translate:"Diğer dile çevir",takePhoto:"Fotoğraf çek",fromGallery:"Galeriden seç",kbdIos:"Kutuya dokunun, sonra klavyedeki mikrofon tuşuna basıp konuşun.",kbdAnd:"Kutuya dokunun, sonra klavyedeki (Gboard) mikrofon tuşuna basıp konuşun.",inspected:"Denetlenenler listesi",inspectedP:"Bu gemide denetlenen ve doğrulanan ekipman ve yerler. Claude yeni fotoğraflarda önce bu adları kullanır. Yanlış bir kaydı listeden çıkarırsanız Claude onu artık örnek almaz.",times:"kez",lastSeen:"son",removeL:"Listeden çıkar",noItems:"Henüz kayıt yok. Ekipman ya da yer alanını düzelttikçe, denetimi tamamladıkça veya raporu indirdikçe liste dolar.",vessels:"Gemiler",goFinding:"Son bulgu",identify:"Fotoğrafı tanı",noImg:"Fotoğraf Claude'a gönderilemedi; sayfayı yenileyip tekrar deneyin",looking:"Claude fotoğrafa bakıyor…",seen:"Claude gördü",equip:"Ekipman",loc:"Yer",unsure:"Claude emin değil, kontrol edin",staleTr:"İngilizce metin, Türkçe değişikliklerden sonra güncellenmedi.",staleEn:"Türkçe metin, İngilizce değişikliklerden sonra güncellenmedi.",
+del:"Sil",delSure:"Silinsin mi?",report:"Raporu gör",writeAll:"Hepsini Claude ile yaz",summary:"Genel değerlendirme",genSummary:"Claude ile özet yaz",
+repLang:"Rapor dili",pdf:"PDF indir",word:"Word indir",copy:"Metni kopyala",pruva:"Pruva'ya aktar (JSON)",copied:"Kopyalandı",saved:"İndirme hazır",declined:"İndirme iptal edildi",
+dlNone:"Bu görünümde dosya indirilemiyor; metni kopyalayabilirsiniz.",preparing:"Dosya hazırlanıyor…",photoErr:"Fotoğraf yüklenemedi. Bağlantıyı kontrol edip tekrar deneyin.",
+noAssets:"Fotoğraf eklemek için bu sayfada düzenleme yetkiniz olmalı.",readonly:"Bu sayfayı yalnızca görüntüleyebilirsiniz.",quota:"Kayıt sınırı doldu; eski denetimleri silin.",
+saveErr:"Kaydedilemedi, tekrar denenecek.",delInsp:"Denetimi sil",open:"Açık",done:"Tamamlandı",status:"Durum",photos:"foto",emptyF:"Henüz bulgu yok. Fotoğrafla başlayın ya da doğrudan anlatın.",
+rateLimited:"Claude şu an meşgul; biraz sonra tekrar deneyin.",aiErr:"Claude yanıtı okunamadı; tekrar deneyin.",total:"Toplam"},
+en:{brand:"Voice Inspection Report",heroT:"See it, shoot it, say it. Report done.",heroP:"Photograph each deficiency and describe it out loud. Claude turns your words into a structured finding; you get the report in English or Turkish.",
+newInsp:"New inspection",inspections:"Inspections",noInsp:"No inspections yet. Start a new one.",loading:"Loading…",offline:"Data can't be reached right now; the list refreshes by itself once connected.",
+example:"Example",findings:"findings",vessel:"Vessel name",imo:"IMO no",flag:"Flag",vtype:"Ship type",port:"Port",date:"Date",itype:"Inspection type",inspector:"Inspector",master:"Master",
+back:"← Inspections",details:"Inspection details",addFinding:"+ Add finding",addPhoto:"Take / choose photo",narr:"Narration",narrPh:"Say what you see: where, what is wrong, what it should be…",micStart:"Start speaking",micStop:"Stop",micBusy:"Stop the open recording first.",
+micNone:"Voice input isn't available in this view. You can also use your phone keyboard's microphone.",micDenied:"Microphone permission was not given; you can type instead.",micErr:"Voice input couldn't start",listening:"Listening… speak now.",
+writeUp:"Write up with Claude",rewrite:"Rewrite",thinking:"Claude is looking at the photo and narration…",aiNone:"Claude isn't available in this view; fill in the fields by hand.",
+title:"Title",desc:"Description",action:"Corrective action",area:"Area",sev:"Severity",refs:"Regulation",psc:"PSC code",due:"Close-out date",editLang:"Editing language",
+translate:"Translate to other language",takePhoto:"Take photo",fromGallery:"From gallery",kbdIos:"Tap the box, then press the microphone key on the keyboard and speak.",kbdAnd:"Tap the box, then press the microphone key on the keyboard (Gboard) and speak.",inspected:"Inspected items",inspectedP:"Equipment and locations inspected and confirmed on this ship. Claude reuses these names first on new photos. Remove a wrong entry and Claude stops using it as an example.",times:"times",lastSeen:"last",removeL:"Remove from list",noItems:"Nothing yet. The list fills as you correct equipment or location fields, complete inspections or download reports.",vessels:"Vessels",goFinding:"Latest finding",identify:"Identify photo",noImg:"The photo couldn't be sent to Claude; reload the page and try again",looking:"Claude is looking at the photo…",seen:"Claude sees",equip:"Equipment",loc:"Location",unsure:"Claude isn't sure, please check",staleTr:"English text wasn't updated after the Turkish edits.",staleEn:"Turkish text wasn't updated after the English edits.",
+del:"Delete",delSure:"Delete it?",report:"View report",writeAll:"Write all with Claude",summary:"Overall assessment",genSummary:"Write summary with Claude",
+repLang:"Report language",pdf:"Download PDF",word:"Download Word",copy:"Copy text",pruva:"Export to Pruva (JSON)",copied:"Copied",saved:"Download ready",declined:"Download cancelled",
+dlNone:"Files can't be downloaded in this view; you can copy the text.",preparing:"Preparing file…",photoErr:"Photo couldn't be uploaded. Check the connection and try again.",
+noAssets:"You need edit access on this page to add photos.",readonly:"You can only view this page.",quota:"Storage limit reached; delete old inspections.",
+saveErr:"Couldn't save, will retry.",delInsp:"Delete inspection",open:"Open",done:"Completed",status:"Status",photos:"photos",emptyF:"No findings yet. Start with a photo or just speak.",
+rateLimited:"Claude is busy right now; try again shortly.",aiErr:"Couldn't read Claude's reply; try again.",total:"Total"}
+};
+/* Report vocabulary (both languages always available, independent of UI language) */
+const SEV={crit:{tr:"Kritik",en:"Critical"},major:{tr:"Büyük",en:"Major"},minor:{tr:"Küçük",en:"Minor"},obs:{tr:"Gözlem",en:"Observation"}};
+const SEV_ORDER=["crit","major","minor","obs"];
+const SEV_PRUVA={crit:"Yüksek",major:"Yüksek",minor:"Orta",obs:"Düşük"};
+const AREA={bridge:{tr:"Köprüüstü ve seyir",en:"Bridge & navigation"},engine:{tr:"Makine dairesi",en:"Engine room"},deck:{tr:"Güverte ve bağlama",en:"Deck & mooring"},
+cargo:{tr:"Yük alanları",en:"Cargo spaces"},fire:{tr:"Yangın emniyeti",en:"Fire safety"},lsa:{tr:"Can kurtarma",en:"Life-saving appliances"},
+poll:{tr:"Kirlilik önleme",en:"Pollution prevention"},accom:{tr:"Yaşam mahalli ve MLC",en:"Accommodation & MLC"},docs:{tr:"Belgeler ve ISM",en:"Documentation & ISM"},
+elec:{tr:"Elektrik",en:"Electrical"},hull:{tr:"Gövde ve yapı",en:"Hull & structure"},other:{tr:"Diğer",en:"Other"}};
+const ITYPE={internal:{tr:"İç denetim (ISM)",en:"Internal audit (ISM)"},supt:{tr:"Superintendent ziyareti",en:"Superintendent visit"},psc:{tr:"PSC hazırlık denetimi",en:"Pre-PSC inspection"},
+vetting:{tr:"Vetting hazırlık denetimi",en:"Pre-vetting inspection"},handover:{tr:"Devir / satın alma denetimi",en:"Condition / pre-purchase survey"},other:{tr:"Diğer",en:"Other"}};
+const RL={tr:{title:"DENETİM RAPORU",equip:"Ekipman",loc:"Yer",findings:"Bulgular",sum:"Genel değerlendirme",desc:"Açıklama",action:"Düzeltici faaliyet",refs:"İlgili kural",psc:"PSC kodu",due:"Kapanış",area:"Bölüm",
+none:"Bulgu kaydedilmedi.",sigI:"Denetçi",sigM:"Kaptan",page:"Sayfa",total:"Toplam",prepared:"Sesli Denetim Raporu ile hazırlandı"},
+en:{title:"INSPECTION REPORT",equip:"Equipment",loc:"Location",findings:"Findings",sum:"Overall assessment",desc:"Description",action:"Corrective action",refs:"Regulation",psc:"PSC code",due:"Close-out",area:"Area",
+none:"No findings recorded.",sigI:"Inspector",sigM:"Master",page:"Page",total:"Total",prepared:"Prepared with Voice Inspection Report"}};
+
+/* ---------- state ---------- */
+const S={ui:"tr",db:null,user:null,assets:null,sample:null,dict:null,dl:null,imgMax:4,
+  insps:{},finds:{},loaded:false,stale:false,view:"list",cur:null,repLang:"tr",editLang:{},
+  blobs:new Map(),urls:new Map(),listening:null,partial:"",dictDenied:false,busy:{},errs:{},armed:null,canWrite:true};
+try{const u=localStorage.getItem("sdr-ui");if(u&&T[u])S.ui=u;else if(!/^tr/i.test(navigator.language||"tr"))S.ui="en";}catch(e){}
+const IS_IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const t=k=>(T[S.ui]&&T[S.ui][k])||T.en[k]||k;
+const L=(o,l)=>o?(o[l||S.ui]||o.en||""):"";
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const $=s=>document.querySelector(s);
+const today=()=>new Date().toISOString().slice(0,10);
+function fmtDate(d,l){if(!d)return"";const [y,m,dd]=d.split("-");if(!dd)return d;return l==="en"?`${+dd} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+m-1]} ${y}`:`${dd}.${m}.${y}`;}
+let toastT;function toast(m){let el=$(".toast");if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.append(el);}el.textContent=m;clearTimeout(toastT);toastT=setTimeout(()=>el.remove(),3200);}
+
+/* ---------- persistence: one write at a time per document, debounced ---------- */
+const Q={};
+function save(col,id,delay=500){
+  if(!S.db||!S.canWrite)return;
+  const q=Q[col+id]||(Q[col+id]={timer:0,chain:Promise.resolve(),dirty:false});
+  q.dirty=true;clearTimeout(q.timer);
+  q.timer=setTimeout(()=>{q.chain=q.chain.then(async()=>{
+    if(!q.dirty)return;q.dirty=false;
+    const src=col==="insp"?S.insps[id]:S.finds[id];if(!src)return;
+    const body=JSON.parse(JSON.stringify(src));body.updated=Date.now();src.updated=body.updated;
+    try{await S.db.collection(col).doc(id).set(body);}
+    catch(e){if(e&&e.code==="invalid_argument"&&S.canWrite===true&&!S.writeOk){S.canWrite=false;toast(t("readonly"));render();}
+      else if(e&&e.code==="quota_exceeded")toast(t("quota"));else{toast(t("saveErr"));q.dirty=true;setTimeout(()=>save(col,id,0),4000);} return;}
+    S.writeOk=true;});},delay);
+}
+const pending=(col,id)=>{const q=Q[col+id];return q&&q.dirty;};
+
+/* ---------- data ---------- */
+function findsOf(iid){return Object.values(S.finds).filter(f=>f.inspId===iid).sort((a,b)=>a.n-b.n);}
+function newInspection(){
+  const id=uid("i");
+  S.insps[id]={vessel:"",imo:"",flag:"",vtype:"",port:"",date:today(),type:"supt",inspector:"",master:"",repLang:S.ui,status:"open",summary:{tr:"",en:""},created:Date.now()};
+  if(S.user&&S.myId)S.insps[id].by=S.myId;
+  save("insp",id,0);go("i-"+id);
+}
+function newFinding(iid){
+  const fs=findsOf(iid);const id=uid("f");
+  S.finds[id]={inspId:iid,n:fs.length?Math.max(...fs.map(f=>f.n))+1:1,photos:[],note:"",tr:{title:"",desc:"",action:""},en:{title:"",desc:"",action:""},
+    area:"",sev:"",refs:"",psc:"",due:"",stale:"",created:Date.now()};
+  save("find",id,0);return id;
+}
+function renumber(iid){findsOf(iid).forEach((f,i)=>{if(f.n!==i+1){f.n=i+1;save("find",Object.keys(S.finds).find(k=>S.finds[k]===f));}});}
+const fid=f=>Object.keys(S.finds).find(k=>S.finds[k]===f);
+
+/* ---------- photos ---------- */
+function shrink(file,max=1600,q=.82){return new Promise((res,rej)=>{const img=new Image();const u=URL.createObjectURL(file);
+  img.onload=()=>{const s=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?res({blob:b,w:c.width,h:c.height}):rej(new Error("encode")),"image/jpeg",q);};
+  img.onerror=()=>{URL.revokeObjectURL(u);rej(new Error("decode"));};img.src=u;});}
+function photoSrc(id){if(S.urls.has(id))return S.urls.get(id);const b=S.blobs.get(id);if(b){const u=URL.createObjectURL(b);S.urls.set(id,u);return u;}return "/_blob/"+encodeURIComponent(id);}
+async function photoBlob(id){if(S.blobs.has(id))return S.blobs.get(id);const r=await fetch("/_blob/"+encodeURIComponent(id));if(!r.ok)throw new Error("fetch");const b=await r.blob();S.blobs.set(id,b);return b;}
+async function addPhotos(fId,files){
+  if(!S.assets){toast(t("noAssets"));return;}
+  const f=S.finds[fId];S.busy[fId]="up";renderFinding(fId);
+  for(const file of files){try{const {blob,w,h}=await shrink(file);const a=await S.assets.upload(blob);S.blobs.set(a.id,blob);f.photos.push({id:a.id,w,h});save("find",fId,0);}
+    catch(e){toast(t("photoErr"));}}
+  delete S.busy[fId];renderFinding(fId);
+  if(f.photos.length)identify(fId);
+}
+async function identify(fId){
+  const f=S.finds[fId];if(!f||!S.sample||S.busy[fId])return;
+  S.busy[fId]="id";delete S.errs[fId];renderFinding(fId);
+  try{const imgs=[];for(const p of f.photos.slice(-S.imgMax)){try{imgs.push(await photoBlob(p.id));}catch(e){}}
+    if(!imgs.length)throw {code:"cancelled"};
+    const r=await S.sample.json(`A ship inspector just photographed something on board (${imgs.length} photo(s) attached)${libPrompt(S.insps[f.inspId]||{})}${f.note?`; their narration so far: """${f.note.slice(0,1500)}"""`:""}.
+Identify what is shown so the inspector can confirm it:
+- equip: the specific ship equipment or item (e.g. "A-60 fire door", "Portable CO2 fire extinguisher", "Liferaft hydrostatic release unit", "Fuel oil purifier", "Mooring winch"). Maker/model only if readable on a nameplate.
+- loc: which space on board this most likely is (e.g. "Engine room", "Boat deck", "Bridge", "Galley"). Sides, decks or numbers only if visible on markings or stated in the narration.
+- seen: one short sentence on the item's visible condition and any apparent deficiency (rust, leak, damage, missing or expired label, obstruction). Say "no obvious deficiency visible" if none. Do not invent.
+- unsure: list "equip" and/or "loc" when that field is a guess, else [].
+- area: one of ${AREA_KEYS}.
+Turkish fields in natural Turkish maritime terminology, English in English.
+Reply with only JSON {"tr":{"equip":"","loc":"","seen":""},"en":{"equip":"","loc":"","seen":""},"area":"","unsure":[]}`,{modelTier:"default",images:imgs});
+    if(!r||!r.tr||!r.en)throw {code:"invalid_json"};
+    f.unsure=f.unsure||{};const un=Array.isArray(r.unsure)?r.unsure:[];
+    for(const k of ["equip","loc"]){const fresh=!f.tr[k]&&!f.en[k];if((fresh||f.unsure[k])&&!(f.conf||{})[k]){f.tr[k]=String(r.tr[k]||"");f.en[k]=String(r.en[k]||"");if(un.includes(k))f.unsure[k]=true;else delete f.unsure[k];}}
+    f.seen={tr:String(r.tr.seen||""),en:String(r.en.seen||"")};
+    if(!f.area&&AREA[r.area])f.area=r.area;
+    save("find",fId,0);
+  }catch(e){if(!e||e.code!=="cancelled")S.errs[fId]=aiErr(e);}
+  delete S.busy[fId];renderFinding(fId);
+}
+
+/* ---------- dictation ---------- */
+function micClick(fId){
+  const d=S.dict;if(!d)return;
+  if(S.listening){const was=S.listening;d.stop().catch(()=>{});if(was!==fId)toast(t("micBusy"));return;}
+  S.listening=fId;S.partial="";
+  d.start().catch(e=>{S.listening=null;const c=e&&e.code;if(c==="not_granted"){S.dictDenied=true;toast(t("micDenied"));}else if(c!=="dismissed")toast(t("micErr")+(c?" ("+c+")":""));renderFinding(fId);});
+  renderFinding(fId);
+}
+function wireDictation(d){
+  d.onPartial(({text})=>{S.partial=text||"";const el=document.getElementById("partial-"+S.listening);if(el)el.textContent=S.partial;});
+  d.onFinal(({text})=>{const id=S.listening;if(!id||!S.finds[id]||!text)return;const f=S.finds[id];
+    f.note=(f.note?f.note.replace(/\s+$/,"")+" ":"")+text.trim();S.partial="";
+    const ta=document.getElementById("note-"+id);if(ta)ta.value=f.note;const p=document.getElementById("partial-"+id);if(p)p.textContent="";
+    save("find",id);updateWriteBtn(id);});
+  d.onState(({state,reason})=>{const id=S.listening;if(state==="idle"){S.listening=null;S.partial="";if(id)renderFinding(id);if(reason&&!["stopped","viewer_stopped","hidden"].includes(reason))toast(t("micErr")+" ("+reason+")");}
+    else if(state==="listening"&&id){const el=document.getElementById("partial-"+id);if(el&&!S.partial)el.textContent=t("listening");}});
+}
+
+/* ---------- Claude ---------- */
+const AREA_KEYS=Object.keys(AREA).join("|");
+function aiErr(e){if(!e)return t("aiErr");if(e.code==="images_unavailable"||e.code==="image_rejected")return t("noImg")+" ("+e.code+")";if(e.code==="rate_limited")return t("rateLimited");if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e.code)){S.sample=null;return t("aiNone");}return t("aiErr");}
+async function writeUp(fId){
+  const f=S.finds[fId],ins=S.insps[f.inspId];if(!S.sample||S.busy[fId])return;
+  S.busy[fId]="ai";delete S.errs[fId];renderFinding(fId);
+  try{
+    const imgs=[];if(S.imgMax){for(const p of f.photos.slice(0,S.imgMax)){try{imgs.push(await photoBlob(p.id));}catch(e){}}}
+    const prompt=`You assist a marine superintendent who is inspecting a ship. For ONE deficiency the inspector took ${imgs.length} photo(s) (attached) and described it by voice. The narration came from speech-to-text, so it may contain recognition errors, filler words or mixed Turkish/English: interpret it sensibly.
+
+Ship: ${ins.vessel||"-"} (${ins.vtype||"type not given"}), inspection type: ${L(ITYPE[ins.type],"en")}.${libPrompt(ins)}
+Narration: """${(f.note||"(no narration)").slice(0,4000)}"""
+
+Turn this into one professional inspection finding written in standard ship-inspection language (as used in PSC, ISM internal audit and vetting reports).
+Rules:
+- State only what the photo or narration supports. Never invent measurements, locations or causes. If something is unclear, write it generally.
+- title: max 10 words, names the item and the problem.
+- desc: 1-3 factual sentences: location, observed condition, why it matters.
+- action: 1-2 imperative sentences, concrete corrective action (and preventive action if obvious).
+- tr fields in natural Turkish maritime terminology, en fields in English; both say the same thing.
+- equip: the specific equipment or item concerned (e.g. "A-60 fire door", "Liferaft hydrostatic release unit", "Oily water separator", "Mooring winch"). Identify it from the photo and the narration; give maker/model only if readable on a nameplate.
+- loc: where on board (e.g. "Engine room entrance, upper platform", "Starboard side, boat deck"). Take sides, decks, numbers only from the narration or visible markings; from the photo alone give only the general space.
+- unsure: list "equip" and/or "loc" when that field is a guess rather than clearly shown or stated; else [].
+- area: one of ${AREA_KEYS}.
+- sev: crit (detainable / immediate danger to safety, pollution or crew), major (system or requirement not met), minor (isolated lapse), obs (observation / good-practice remark).
+- refs: short regulation references only if clearly applicable (e.g. "SOLAS II-2/14", "MARPOL Annex I Reg. 17", "ISM Code 10", "LSA Code 4.4"), else "".
+- psc: Paris MoU 5-digit deficiency code only if you are confident, else "".
+Reply with only this JSON: {"tr":{"title":"","equip":"","loc":"","desc":"","action":""},"en":{"title":"","equip":"","loc":"","desc":"","action":""},"area":"","sev":"","refs":"","psc":"","unsure":[]}`;
+    const opts={modelTier:"default"};if(imgs.length)opts.images=imgs;
+    const r=await S.sample.json(prompt,opts);
+    if(!r||!r.tr||!r.en)throw {code:"invalid_json"};
+    const cf=f.conf||{};
+    for(const l of ["tr","en"])f[l]={title:String(r[l].title||""),equip:cf.equip?f[l].equip:String(r[l].equip||""),loc:cf.loc?f[l].loc:String(r[l].loc||""),desc:String(r[l].desc||""),action:String(r[l].action||"")};
+    f.unsure={};(Array.isArray(r.unsure)?r.unsure:[]).forEach(k=>{if((k==="equip"||k==="loc")&&!cf[k])f.unsure[k]=true;});
+    f.area=AREA[r.area]?r.area:(f.area||"other");f.sev=SEV[r.sev]?r.sev:(f.sev||"minor");f.refs=String(r.refs||"");f.psc=String(r.psc||"").replace(/\D/g,"").slice(0,5);f.stale="";f.ai=Date.now();
+    save("find",fId,0);
+  }catch(e){if(!e||e.code!=="cancelled")S.errs[fId]=aiErr(e);}
+  delete S.busy[fId];renderFinding(fId);
+}
+async function translateF(fId){
+  const f=S.finds[fId];if(!S.sample||S.busy[fId]||!f.stale)return;const from=f.stale,to=from==="tr"?"en":"tr";
+  S.busy[fId]="tr";delete S.errs[fId];renderFinding(fId);
+  try{const r=await S.sample.json(`Translate this ship inspection finding from ${from==="tr"?"Turkish":"English"} to ${to==="tr"?"Turkish":"English"}, using standard maritime inspection terminology. Keep meaning exact; do not add anything. Reply with only JSON {"title":"","equip":"","loc":"","desc":"","action":""}.\n\n${JSON.stringify(f[from])}`,{modelTier:"quick"});
+    f[to]={title:String(r.title||""),equip:String(r.equip||""),loc:String(r.loc||""),desc:String(r.desc||""),action:String(r.action||"")};f.stale="";save("find",fId,0);}
+  catch(e){if(!e||e.code!=="cancelled")S.errs[fId]=aiErr(e);}
+  delete S.busy[fId];renderFinding(fId);
+}
+async function writeAll(iid){
+  for(const f of findsOf(iid)){const id=fid(f);if(!S.sample)break;if(!f.tr.title&&(f.note||f.photos.length))await writeUp(id);}
+}
+async function genSummary(iid){
+  const ins=S.insps[iid];if(!S.sample||S.busy[iid])return;S.busy[iid]="ai";delete S.errs[iid];render();
+  try{const fs=findsOf(iid).map(f=>`#${f.n} [${f.sev||"?"}] (${L(AREA[f.area],"en")}) ${f.en.title}: ${f.en.desc}`).join("\n");
+    const r=await S.sample.json(`Write the "overall assessment" paragraph of a ship inspection report. Ship ${ins.vessel||"-"}, ${L(ITYPE[ins.type],"en")}, port ${ins.port||"-"}, date ${ins.date}.
+Findings (severity crit/major/minor/obs):\n${fs||"(none)"}\n
+3-5 sentences: general condition, main risk areas, the most urgent actions (refer to finding numbers), and a fair closing remark. Factual, no invented facts. Provide the same text in Turkish (maritime terminology) and English. Reply with only JSON {"tr":"","en":""}.`,{modelTier:"default"});
+    ins.summary={tr:String(r.tr||""),en:String(r.en||"")};save("insp",iid,0);}
+  catch(e){if(!e||e.code!=="cancelled")S.errs[iid]=aiErr(e);}
+  delete S.busy[iid];render();
+}
+
+/* ---------- inspected items (learning library, derived from findings) ---------- */
+const norm=x=>String(x||"").toLocaleLowerCase("tr").replace(/\s+/g," ").trim();
+function vKey(i){const imo=String(i.imo||"").replace(/\D/g,"");if(imo.length>=7)return "imo"+imo;const n=norm(i.vessel).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ı/g,"i").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");return n?"n-"+n:"";}
+function vesselLib(vk){
+  const items={};
+  for(const [id,f] of Object.entries(S.finds)){const ins=S.insps[f.inspId];if(!ins||f.noLearn||vKey(ins)!==vk)continue;
+    const okAll=ins.status==="done"||ins.exported;const c=f.conf||{},u=f.unsure||{};
+    const okE=(f.tr.equip||f.en.equip)&&(c.equip||(okAll&&!u.equip));if(!okE)continue;
+    const okL=(f.tr.loc||f.en.loc)&&(c.loc||(okAll&&!u.loc));
+    const tr={equip:f.tr.equip||f.en.equip,loc:okL?(f.tr.loc||f.en.loc):""},en={equip:f.en.equip||f.tr.equip,loc:okL?(f.en.loc||f.tr.loc):""};
+    const k=norm(tr.equip)+"|"+norm(tr.loc);const it=items[k]||(items[k]={k,tr,en,area:f.area,n:0,last:"",sev:"",photo:"",fid:"",fids:[]});
+    it.n++;it.fids.push(id);const d=ins.date||"";
+    if(d>=it.last){it.last=d;it.sev=f.sev;it.area=f.area||it.area;it.fid=id;it.tr=tr;it.en=en;if(f.photos.length)it.photo=f.photos[0].id;}}
+  return Object.values(items).sort((a,b)=>(a.area||"").localeCompare(b.area||"")||a.tr.equip.localeCompare(b.tr.equip,"tr"));
+}
+function libPrompt(ins){const vk=vKey(ins);if(!vk)return "";const it=vesselLib(vk).sort((a,b)=>b.n-a.n).slice(0,120);if(!it.length)return "";
+  return `\nEquipment and locations already inspected and confirmed on this ship by the inspector (reuse these exact names in both languages when the photo or narration matches one; if it could equally be more than one of them, e.g. No.1 vs No.2 generator, pick the likeliest and mark it unsure; if it is none of them, give a new name):\n`+it.map(x=>`- ${x.en.equip} / ${x.tr.equip}${x.en.loc?` @ ${x.en.loc} / ${x.tr.loc}`:""} (${x.n}x)`).join("\n")+"\n";}
+function markExported(id){const i=S.insps[id];if(i&&!i.exported&&S.canWrite){i.exported=true;save("insp",id,0);}}
+
+/* ---------- routing ---------- */
+function go(h){if(location.hash==="#"+h)route();else location.hash=h;}
+function route(){const h=location.hash.slice(1);
+  if(h.startsWith("i-")&&S.insps[h.slice(2)]){S.view="insp";S.cur=h.slice(2);}
+  else if(h.startsWith("r-")&&S.insps[h.slice(2)]){S.view="rep";S.cur=h.slice(2);S.repLang=S.insps[S.cur].repLang||S.ui;}
+  else if(h.startsWith("v-")&&S.loaded){S.view="ves";S.vkey=h.slice(2);}
+  else if((h.startsWith("i-")||h.startsWith("r-")||h.startsWith("v-"))&&!S.loaded){S.view="wait";}
+  else{S.view="list";S.cur=null;}
+  render();window.scrollTo(0,0);}
+addEventListener("hashchange",route);
+
+/* ---------- render ---------- */
+const micSvg='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="2" width="7" height="12" rx="3.5" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4" stroke="currentColor" stroke-width="2" fill="none"/></svg>';
+const stopSvg='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>';
+function sevPill(s,l){return s?`<span class="pill ${s}">${esc(L(SEV[s],l))}</span>`:"";}
+function counts(fs,l){const c={};fs.forEach(f=>{if(f.sev)c[f.sev]=(c[f.sev]||0)+1;});return SEV_ORDER.filter(s=>c[s]).map(s=>`<span class="pill ${s}">${c[s]} ${esc(L(SEV[s],l))}</span>`).join("");}
+function opts(map,val,l){return Object.entries(map).map(([k,v])=>`<option value="${k}"${k===val?" selected":""}>${esc(L(v,l))}</option>`).join("");}
+function busyFocus(){const a=document.activeElement;return a&&a.closest&&a.closest("#main")&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);}
+
+function render(){
+  document.documentElement.lang=S.ui;$("#brandName").textContent=t("brand");document.title=t("brand");
+  $("#uiTr").setAttribute("aria-pressed",S.ui==="tr");$("#uiEn").setAttribute("aria-pressed",S.ui==="en");
+  const m=$("#main");
+  if(S.view==="insp")m.innerHTML=viewInsp(S.cur);
+  else if(S.view==="rep")m.innerHTML=viewRep(S.cur);
+  else if(S.view==="ves")m.innerHTML=viewVes(S.vkey);
+  else if(S.view==="wait")m.innerHTML=`<p class="note">${t("loading")}</p>`;
+  else m.innerHTML=viewList();
+}
+function viewList(){
+  const list=Object.entries(S.insps).sort((a,b)=>(b[1].date||"").localeCompare(a[1].date||"")||(b[1].created||0)-(a[1].created||0));
+  let h=`<section class="hero"><h1>${esc(t("heroT"))}</h1><p>${esc(t("heroP"))}</p></section>
+  <div class="row"><h2 style="font-size:24px">${t("inspections")}</h2><span class="spacer"></span>${S.canWrite&&S.db?`<button class="btn pri" type="button" data-act="newInsp" id="btnNew">${t("newInsp")}</button>`:""}</div>`;
+  if(!S.db&&S.dbChecked)h+=`<p class="note">${t("readonly")}</p>`;
+  if(!S.loaded)h+=`<p class="note">${S.stale?t("offline"):t("loading")}</p>`;
+  else if(!list.length)h+=`<div class="empty">${t("noInsp")}</div>`;
+  else h+=`<div class="list">${list.map(([id,i])=>{const fs=findsOf(id);
+    return `<button type="button" class="icard" data-go="i-${id}"><div><h3>${esc(i.vessel||"—")} ${i.ex?`<span class="pill ex">${t("example")}</span>`:""}</h3>
+    <div class="meta">${esc(L(ITYPE[i.type]))} · ${esc(i.port||"—")} · ${esc(fmtDate(i.date,S.ui))} · ${fs.length} ${t("findings")}</div></div>
+    <div class="counts">${counts(fs,S.ui)}</div></button>`;}).join("")}</div>`;
+  const ves={};list.forEach(([id,i])=>{const k=vKey(i);if(k&&!ves[k])ves[k]=i.vessel||i.imo;});
+  if(Object.keys(ves).length)h+=`<div class="row" style="margin-top:8px"><span class="note">${t("inspected")}:</span>${Object.entries(ves).map(([k,n])=>`<a class="btn sm ghost" href="#v-${k}">${esc(n)} (${vesselLib(k).length})</a>`).join("")}</div>`;
+  if(S.stale&&S.loaded)h+=`<p class="note">${t("offline")}</p>`;
+  return h;
+}
+function field(id,k,label,type="text",extra=""){const i=S.insps[id];return `<label class="f">${label}<input id="in-${k}" type="${type}" data-insp="${k}" value="${esc(i[k]||"")}" ${extra}></label>`;}
+function viewInsp(id){
+  const i=S.insps[id];const fs=findsOf(id);const ro=!S.canWrite?" disabled":"";
+  let h=`<div class="row"><a class="btn ghost sm" href="#list">${t("back")}</a><span class="spacer"></span>
+    ${vKey(i)?`<a class="btn sm ghost" href="#v-${vKey(i)}">${t("inspected")} (${vesselLib(vKey(i)).length})</a>`:""}<a class="btn sm" href="#r-${id}">${t("report")}</a></div>
+  <details class="panel" ${i.vessel?"":"open"}><summary style="cursor:pointer"><h2 style="display:inline;font-size:22px">${esc(i.vessel||t("details"))}</h2>
+    <span class="note"> · ${esc(L(ITYPE[i.type]))} · ${esc(fmtDate(i.date,S.ui))}</span></summary>
+    <div class="grid2" style="margin-top:12px">
+    ${field(id,"vessel",t("vessel"),"text",`autocomplete="off"${ro}`)}${field(id,"imo",t("imo"),"text",`inputmode="numeric" maxlength="7"${ro}`)}
+    ${field(id,"vtype",t("vtype"),"text",ro)}${field(id,"flag",t("flag"),"text",ro)}${field(id,"port",t("port"),"text",ro)}${field(id,"date",t("date"),"date",ro)}
+    <label class="f">${t("itype")}<select id="in-type" data-insp="type"${ro}>${opts(ITYPE,i.type)}</select></label>
+    ${field(id,"inspector",t("inspector"),"text",ro)}${field(id,"master",t("master"),"text",ro)}
+    <label class="f">${t("status")}<select id="in-status" data-insp="status"${ro}><option value="open"${i.status!=="done"?" selected":""}>${t("open")}</option><option value="done"${i.status==="done"?" selected":""}>${t("done")}</option></select></label>
+    </div>
+    ${S.canWrite?`<div class="row"><span class="spacer"></span><button type="button" class="btn sm danger" data-act="delInsp" data-id="${id}">${S.armed==="I"+id?t("delSure"):t("delInsp")}</button></div>`:""}
+  </details>
+  <div class="list" id="flist">${fs.length?fs.map(f=>`<div id="fc-${fid(f)}">${findingHtml(fid(f))}</div>`).join(""):`<div class="empty">${t("emptyF")}</div>`}</div>
+  <div class="stick">${S.canWrite?`<button type="button" class="btn pri" data-act="addF" data-id="${id}" id="btnAddF">${t("addFinding")}</button>`:""}
+   ${S.sample&&fs.some(f=>!f.tr.title&&(f.note||f.photos.length))?`<button type="button" class="btn" data-act="writeAll" data-id="${id}">${t("writeAll")}</button>`:""}
+   <a class="btn" href="#r-${id}">${t("report")}</a></div>`;
+  return h;
+}
+function viewVes(vk){
+  const ins=Object.values(S.insps).find(i=>vKey(i)===vk);const items=vesselLib(vk);const back=S.cur&&S.insps[S.cur]?"#i-"+S.cur:"#list";
+  const groups={};items.forEach(x=>{(groups[x.area||"other"]=groups[x.area||"other"]||[]).push(x);});
+  let h=`<div class="row"><a class="btn ghost sm" href="${back}">←</a><h1 style="font-size:28px">${esc(ins?ins.vessel||ins.imo:vk)} · ${t("inspected")}</h1></div><p class="note" style="margin:0">${t("inspectedP")}</p>`;
+  if(!items.length)return h+`<div class="empty">${t("noItems")}</div>`;
+  for(const a of Object.keys(AREA).filter(a=>groups[a])){h+=`<section class="panel"><h2 style="font-size:20px">${esc(L(AREA[a]))}</h2><div class="list">`+groups[a].map(x=>{const n=L(x);const f=S.finds[x.fid];
+    return `<div class="vrow">${x.photo?`<img src="${esc(photoSrc(x.photo))}" alt="" loading="lazy">`:`<span class="nophoto"></span>`}
+     <div><b>${esc(n.equip)}</b>${n.loc?`<div class="note">${esc(n.loc)}</div>`:""}<div class="note">${x.n} ${t("times")} · ${t("lastSeen")} ${esc(fmtDate(x.last,S.ui))} ${sevPill(x.sev)}</div></div>
+     <div class="row" style="justify-content:flex-end">${f?`<a class="btn sm ghost" href="#i-${f.inspId}">${t("goFinding")}</a>`:""}${S.canWrite?`<button type="button" class="btn sm danger" data-act="unlearn" data-k="${esc(x.k)}">${S.armed==="L"+x.k?t("delSure"):t("removeL")}</button>`:""}</div></div>`;}).join("")+`</div></section>`;}
+  return h;
+}
+function findingHtml(id){
+  const f=S.finds[id];if(!f)return"";const el=S.editLang[id]||S.ui;const x=f[el]||{};const ro=!S.canWrite?" disabled":"";
+  const on=S.listening===id;const busy=S.busy[id];
+  const has=f.tr.title||f.en.title;
+  return `<article class="fcard ${f.sev||"none"}" aria-label="#${f.n}">
+  <div class="fhead"><span class="fnum">#${f.n}</span><span class="ftitle">${esc(x.title||f[el==="tr"?"en":"tr"].title||"")}</span>${sevPill(f.sev)}
+   ${S.canWrite?`<button type="button" class="btn sm ghost danger" data-act="delF" data-id="${id}">${S.armed==="F"+id?t("delSure"):t("del")}</button>`:""}</div>
+  <div class="photos">${f.photos.map((p,k)=>`<div class="ph"><img src="${esc(photoSrc(p.id))}" alt="#${f.n} ${k+1}" loading="lazy">${S.canWrite?`<button type="button" aria-label="${t("del")}" data-act="delPh" data-id="${id}" data-k="${k}">×</button>`:""}</div>`).join("")}
+   ${S.canWrite&&S.assets?(busy==="up"?`<span class="addph">${t("loading")}</span>`:`<label class="addph cam">📷<br>${t("takePhoto")}<input type="file" accept="image/*" capture="environment" data-photo="${id}" id="cam-${id}"></label><label class="addph">🖼<br>${t("fromGallery")}<input type="file" accept="image/*" multiple data-photo="${id}" id="ph-${id}"></label>`):""}</div>
+  ${busy==="id"?`<div class="seen busy">${t("looking")}</div>`:(f.seen&&(f.seen.tr||f.seen.en))?`<div class="seen"><b>👁 ${t("seen")}:</b> ${esc([(f[S.ui]||{}).equip,(f[S.ui]||{}).loc].filter(Boolean).join(" · "))}${(f.unsure||{}).equip||(f.unsure||{}).loc?` <span class="unote">(${t("unsure")})</span>`:""}<br>${esc(L(f.seen))}</div>`:""}
+  <div class="say"><div class="top">${S.dict&&!S.dictDenied&&S.canWrite?`<button type="button" class="mic${on?" on":""}" data-act="mic" data-id="${id}" aria-label="${on?t("micStop"):t("micStart")}" aria-pressed="${on}">${on?stopSvg:micSvg}</button>`:""}
+    <label for="note-${id}" style="font-weight:600">${t("narr")}</label></div>
+   ${(!S.dict||S.dictDenied)&&S.canWrite?`<div class="kbd"><b aria-hidden="true">🎤</b><span>${IS_IOS?t("kbdIos"):t("kbdAnd")}</span></div>`:""}
+   <textarea class="inp" id="note-${id}" rows="3" data-note="${id}" placeholder="${esc(t("narrPh"))}"${ro}>${esc(f.note)}</textarea>
+   <div class="partial" id="partial-${id}">${on?esc(S.partial):""}</div>
+   <div class="row">${S.sample&&S.canWrite&&f.photos.length&&busy!=="id"?`<button type="button" class="btn sm" data-act="ident" data-id="${id}"${busy?" disabled":""}>👁 ${t("identify")}</button>`:""}${S.sample&&S.canWrite?`<button type="button" class="btn sm${has?"":" pri"}" data-act="write" data-id="${id}" id="wb-${id}"${busy||(!f.note&&!f.photos.length)?" disabled":""}>✦ ${has?t("rewrite"):t("writeUp")}</button>`:""}
+    ${busy==="ai"||busy==="tr"?`<span class="busy">${t("thinking")}</span>`:""}${S.errs[id]?`<span class="err">${esc(S.errs[id])}</span>`:""}</div></div>
+  ${has||!S.sample||f.tr.equip||f.en.equip?`<div class="ai">
+   <div class="row"><span class="note">${t("editLang")}</span><span class="tabs"><button type="button" data-elang="tr" data-id="${id}" aria-pressed="${el==="tr"}">TR</button><button type="button" data-elang="en" data-id="${id}" aria-pressed="${el==="en"}">EN</button></span>
+    ${f.stale?`<span class="stale">${f.stale==="tr"?t("staleTr"):t("staleEn")}</span>${S.sample&&S.canWrite?`<button type="button" class="btn sm" data-act="trans" data-id="${id}"${busy?" disabled":""}>${t("translate")}</button>`:""}`:""}</div>
+   <label class="f">${t("title")}<input id="ti-${id}" data-fx="title" data-id="${id}" value="${esc(x.title)}"${ro}></label>
+   <div class="grid2">${["equip","loc"].map(k=>`<label class="f${(f.unsure||{})[k]?" unsure":""}">${t(k)}${(f.unsure||{})[k]?` <span class="unote">⚠ ${t("unsure")}</span>`:""}<input id="${k}-${id}" data-fx="${k}" data-id="${id}" value="${esc(x[k]||"")}"${ro}></label>`).join("")}</div>
+   <label class="f">${t("desc")}<textarea id="de-${id}" rows="3" data-fx="desc" data-id="${id}"${ro}>${esc(x.desc)}</textarea></label>
+   <label class="f">${t("action")}<textarea id="ac-${id}" rows="2" data-fx="action" data-id="${id}"${ro}>${esc(x.action)}</textarea></label>
+   <div><div class="note" style="margin-bottom:4px">${t("sev")}</div><div class="sevs" role="group" aria-label="${t("sev")}">${SEV_ORDER.map(s=>`<button type="button" class="${s}" data-sev="${s}" data-id="${id}" aria-pressed="${f.sev===s}"${ro}>${esc(L(SEV[s]))}</button>`).join("")}</div></div>
+   <div class="grid2"><label class="f">${t("area")}<select id="ar-${id}" data-ff="area" data-id="${id}"${ro}><option value=""></option>${opts(AREA,f.area)}</select></label>
+    <label class="f">${t("refs")}<input id="rf-${id}" data-ff="refs" data-id="${id}" value="${esc(f.refs)}"${ro}></label>
+    <label class="f">${t("psc")}<input id="ps-${id}" class="code" data-ff="psc" data-id="${id}" value="${esc(f.psc)}" inputmode="numeric" maxlength="5"${ro}></label>
+    <label class="f">${t("due")}<input id="du-${id}" type="date" data-ff="due" data-id="${id}" value="${esc(f.due)}"${ro}></label></div>
+  </div>`:""}
+  </article>`;
+}
+function renderFinding(id){const box=document.getElementById("fc-"+id);if(box)box.innerHTML=findingHtml(id);else if(S.view==="insp")render();}
+function updateWriteBtn(id){const b=document.getElementById("wb-"+id),f=S.finds[id];if(b&&f)b.disabled=!!S.busy[id]||(!f.note&&!f.photos.length);}
+
+/* report */
+function repData(id,l){const i=S.insps[id];const fs=findsOf(id).slice().sort((a,b)=>a.n-b.n);return {i,fs,R:RL[l]};}
+function viewRep(id){
+  const l=S.repLang;const {i,fs,R}=repData(id,l);const fs2=fs.filter(f=>f.tr.title||f.en.title||f.note);
+  const tot=SEV_ORDER.map(s=>[s,fs2.filter(f=>f.sev===s).length]).filter(x=>x[1]);
+  const busy=S.busy[id];
+  return `<div class="row"><a class="btn ghost sm" href="#i-${id}">← ${esc(i.vessel||t("details"))}</a><span class="spacer"></span>
+   <span class="note">${t("repLang")}</span><span class="tabs"><button type="button" data-rlang="tr" aria-pressed="${l==="tr"}">Türkçe</button><button type="button" data-rlang="en" aria-pressed="${l==="en"}">English</button></span></div>
+  <div class="row">${S.dl?`<button type="button" class="btn pri" data-act="pdf" data-id="${id}">${t("pdf")}</button><button type="button" class="btn" data-act="docx" data-id="${id}">${t("word")}</button>`:""}
+   <button type="button" class="btn" data-act="copy" data-id="${id}">${t("copy")}</button>${S.dl?`<button type="button" class="btn ghost" data-act="pruva" data-id="${id}">${t("pruva")}</button>`:""}
+   ${S.sample&&S.canWrite?`<button type="button" class="btn ghost" data-act="sum" data-id="${id}"${busy?" disabled":""}>✦ ${t("genSummary")}</button>`:""}
+   ${busy?`<span class="busy">${t("thinking")}</span>`:""}${S.errs[id]?`<span class="err">${esc(S.errs[id])}</span>`:""}</div>
+  ${!S.dl&&S.dlChecked?`<p class="note">${t("dlNone")}</p>`:""}
+  <div class="rep-wrap"><article class="rep" lang="${l}">
+   <div class="rh"><h1>${R.title}</h1><span class="code">${esc(L(ITYPE[i.type],l))}</span></div>
+   <table><tbody>
+    <tr><th>${esc(T[l].vessel)}</th><td>${esc(i.vessel)}</td></tr><tr><th>${esc(T[l].imo)}</th><td>${esc(i.imo)}</td></tr>
+    <tr><th>${esc(T[l].vtype)} / ${esc(T[l].flag)}</th><td>${esc([i.vtype,i.flag].filter(Boolean).join(" / "))}</td></tr>
+    <tr><th>${esc(T[l].port)} / ${esc(T[l].date)}</th><td>${esc([i.port,fmtDate(i.date,l)].filter(Boolean).join(" / "))}</td></tr>
+    <tr><th>${esc(T[l].inspector)}</th><td>${esc(i.inspector)}</td></tr><tr><th>${esc(T[l].master)}</th><td>${esc(i.master)}</td></tr>
+   </tbody></table>
+   <section style="display:grid;gap:8px"><h2>${R.sum}</h2>
+    ${S.canWrite?`<textarea class="inp" id="sum-${id}" rows="4" data-sum="${id}" data-l="${l}" style="background:#f6f8fa;color:#16212c;border-color:#c9d1da">${esc((i.summary||{})[l]||"")}</textarea>`:`<p style="margin:0">${esc((i.summary||{})[l]||"")}</p>`}
+    <div class="tot"><span>${R.total}: ${fs2.length}</span>${tot.map(([s,n])=>`<span>${esc(L(SEV[s],l))}: ${n}</span>`).join("")}</div></section>
+   <section style="display:grid;gap:10px"><h2>${R.findings}</h2>
+   ${fs2.length?fs2.map(f=>{const x=f[l].title?f[l]:f[l==="tr"?"en":"tr"];return `<div class="rf ${f.sev}">
+     <h3>${f.n}. ${esc(x.title||f.note.slice(0,80))}</h3>
+     <p><span class="lbl">${esc(L(SEV[f.sev],l))}</span>${f.area?` · ${esc(L(AREA[f.area],l))}`:""}${f.refs?` · ${esc(f.refs)}`:""}${f.psc?` · PSC <span class="code">${esc(f.psc)}</span>`:""}${f.due?` · ${R.due}: ${esc(fmtDate(f.due,l))}`:""}</p>
+     ${x.equip||x.loc?`<p>${x.equip?`<span class="lbl">${R.equip}:</span> ${esc(x.equip)}`:""}${x.equip&&x.loc?" · ":""}${x.loc?`<span class="lbl">${R.loc}:</span> ${esc(x.loc)}`:""}</p>`:""}
+     ${x.desc?`<p><span class="lbl">${R.desc}:</span> ${esc(x.desc)}</p>`:(f.note?`<p>${esc(f.note)}</p>`:"")}
+     ${x.action?`<p><span class="lbl">${R.action}:</span> ${esc(x.action)}</p>`:""}
+     ${f.photos.length?`<div class="rphotos">${f.photos.map((p,k)=>`<img src="${esc(photoSrc(p.id))}" alt="${f.n}.${k+1}" loading="lazy">`).join("")}</div>`:""}</div>`;}).join(""):`<p>${R.none}</p>`}
+   </section>
+   <div class="sig"><div>${R.sigI}: ${esc(i.inspector)}</div><div>${R.sigM}: ${esc(i.master)}</div></div>
+  </article></div>`;
+}
+
+/* ---------- export ---------- */
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`)){res();return;}const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=rej;document.head.append(s);});}
+async function libs(kind){
+  if(kind==="pdf"&&!window.pdfMake?.vfs){await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js");await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js");}
+  if(kind==="docx"&&!window.docx)await loadScript("https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js");
+}
+async function imgData(id,max=1000){const b=await photoBlob(id);const {blob,w,h}=await shrink(b,max,.8);const buf=await blob.arrayBuffer();
+  const u8=new Uint8Array(buf);let s="";for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
+  return {buf,w,h,url:"data:image/jpeg;base64,"+btoa(s)};}
+function fname(id,ext){const i=S.insps[id];return `${(i.vessel||"denetim").replace(/[^\p{L}\p{N}]+/gu,"-")}_${i.date||""}_${S.repLang}.${ext}`;}
+async function saveFile(name,data){try{await S.dl.save({filename:name,data});toast(t("saved"));}catch(e){if(e&&e.code==="declined")toast(t("declined"));else toast(t("dlNone"));}}
+const SEVHEX={crit:"#c92a2a",major:"#e8590c",minor:"#b08900",obs:"#56708a"};
+async function exportPdf(id){
+  toast(t("preparing"));const l=S.repLang;const {i,fs,R}=repData(id,l);
+  try{await libs("pdf");}catch(e){toast(t("dlNone"));return;}
+  const info=[[T[l].vessel,i.vessel],[T[l].imo,i.imo],[T[l].vtype+" / "+T[l].flag,[i.vtype,i.flag].filter(Boolean).join(" / ")],[T[l].port+" / "+T[l].date,[i.port,fmtDate(i.date,l)].filter(Boolean).join(" / ")],[T[l].inspector,i.inspector],[T[l].master,i.master]];
+  const content=[{columns:[{text:R.title,style:"h1"},{text:L(ITYPE[i.type],l),alignment:"right",margin:[0,8,0,0],color:"#5b6876"}]},
+    {canvas:[{type:"line",x1:0,y1:2,x2:515,y2:2,lineWidth:2.5,lineColor:"#d9480f"}],margin:[0,0,0,10]},
+    {table:{widths:[160,"*"],body:info.map(r=>[{text:r[0],bold:true,fillColor:"#eef1f4"},r[1]||""])},layout:{hLineColor:"#c9d1da",vLineColor:"#c9d1da"},margin:[0,0,0,14]},
+    {text:R.sum,style:"h2"},{text:(i.summary||{})[l]||"",margin:[0,0,0,6]},
+    {text:[R.total+": "+fs.length+"   ",...SEV_ORDER.map(s=>{const n=fs.filter(f=>f.sev===s).length;return n?{text:L(SEV[s],l)+": "+n+"   ",color:SEVHEX[s],bold:true}:""}).filter(Boolean)],margin:[0,0,0,12]},
+    {text:R.findings,style:"h2"}];
+  if(!fs.length)content.push({text:R.none});
+  for(const f of fs){const x=f[l].title?f[l]:f[l==="tr"?"en":"tr"];
+    const meta=[L(SEV[f.sev],l),f.area?L(AREA[f.area],l):"",f.refs,f.psc?"PSC "+f.psc:"",f.due?R.due+": "+fmtDate(f.due,l):""].filter(Boolean).join("  ·  ");
+    const stack=[{text:f.n+". "+(x.title||f.note.slice(0,80)),style:"h3"},{text:meta,color:SEVHEX[f.sev]||"#5b6876",bold:true,fontSize:9,margin:[0,0,0,4]}];
+    const el=[];if(x.equip)el.push({text:R.equip+": ",bold:true},x.equip+(x.loc?"   ":""));if(x.loc)el.push({text:R.loc+": ",bold:true},x.loc);if(el.length)stack.push({text:el,margin:[0,0,0,3]});
+    if(x.desc)stack.push({text:[{text:R.desc+": ",bold:true},x.desc],margin:[0,0,0,3]});else if(f.note)stack.push({text:f.note});
+    if(x.action)stack.push({text:[{text:R.action+": ",bold:true},x.action],margin:[0,0,0,3]});
+    const imgs=[];for(const p of f.photos){try{const d=await imgData(p.id);imgs.push({image:d.url,fit:[160,120],margin:[0,4,6,0]});}catch(e){}}
+    for(let k=0;k<imgs.length;k+=3)stack.push({columns:imgs.slice(k,k+3).concat(Array(Math.max(0,3-imgs.slice(k,k+3).length)).fill({text:""})),columnGap:6});
+    content.push({table:{widths:[4,"*"],body:[[{text:"",fillColor:SEVHEX[f.sev]||"#c9d1da"},{stack,margin:[6,4,4,6]}]]},layout:{hLineColor:"#c9d1da",vLineColor:"#c9d1da",paddingLeft:()=>0,paddingRight:()=>0},margin:[0,0,0,8],unbreakable:imgs.length<=3});
+  }
+  content.push({columns:[{text:R.sigI+": "+(i.inspector||""),margin:[0,40,0,0]},{text:R.sigM+": "+(i.master||""),margin:[0,40,0,0]}]});
+  const dd={pageSize:"A4",pageMargins:[40,40,40,50],content,defaultStyle:{fontSize:10,lineHeight:1.2},
+    styles:{h1:{fontSize:20,bold:true,color:"#1c2e40"},h2:{fontSize:13,bold:true,color:"#1c2e40",margin:[0,6,0,4]},h3:{fontSize:11.5,bold:true,color:"#16212c"}},
+    footer:(c,n)=>({columns:[{text:(i.vessel||"")+" · "+fmtDate(i.date,l),fontSize:8,color:"#5b6876"},{text:R.page+" "+c+" / "+n,alignment:"right",fontSize:8,color:"#5b6876"}],margin:[40,16,40,0]}),
+    info:{title:R.title+" "+(i.vessel||"")}};
+  const blob=await new Promise(res=>pdfMake.createPdf(dd).getBlob(res));
+  await saveFile(fname(id,"pdf"),blob);
+}
+async function exportDocx(id){
+  toast(t("preparing"));const l=S.repLang;const {i,fs,R}=repData(id,l);
+  try{await libs("docx");}catch(e){toast(t("dlNone"));return;}
+  const D=window.docx;const P=(txt,o={})=>new D.Paragraph({children:[new D.TextRun({text:txt||"",...o})],...(o.p||{})});
+  const cell=(txt,head)=>new D.TableCell({children:[P(txt,{bold:!!head})],shading:head?{fill:"EEF1F4",type:D.ShadingType.CLEAR,color:"auto"}:undefined,width:{size:head?32:68,type:D.WidthType.PERCENTAGE}});
+  const info=[[T[l].vessel,i.vessel],[T[l].imo,i.imo],[T[l].vtype+" / "+T[l].flag,[i.vtype,i.flag].filter(Boolean).join(" / ")],[T[l].port+" / "+T[l].date,[i.port,fmtDate(i.date,l)].filter(Boolean).join(" / ")],[T[l].inspector,i.inspector],[T[l].master,i.master]];
+  const ch=[new D.Paragraph({heading:D.HeadingLevel.TITLE,children:[new D.TextRun({text:R.title,bold:true,color:"1C2E40"})]}),
+    P(L(ITYPE[i.type],l),{color:"5B6876"}),
+    new D.Table({width:{size:100,type:D.WidthType.PERCENTAGE},rows:info.map(r=>new D.TableRow({children:[cell(r[0],true),cell(r[1]||"")]}))}),
+    new D.Paragraph({heading:D.HeadingLevel.HEADING_1,children:[new D.TextRun({text:R.sum,color:"1C2E40"})]}),P((i.summary||{})[l]||""),
+    new D.Paragraph({children:[new D.TextRun({text:R.total+": "+fs.length+"   ",bold:true}),...SEV_ORDER.map(s=>{const n=fs.filter(f=>f.sev===s).length;return n?new D.TextRun({text:L(SEV[s],l)+": "+n+"   ",bold:true,color:SEVHEX[s].slice(1)}):null}).filter(Boolean)]}),
+    new D.Paragraph({heading:D.HeadingLevel.HEADING_1,children:[new D.TextRun({text:R.findings,color:"1C2E40"})]})];
+  if(!fs.length)ch.push(P(R.none));
+  for(const f of fs){const x=f[l].title?f[l]:f[l==="tr"?"en":"tr"];
+    ch.push(new D.Paragraph({heading:D.HeadingLevel.HEADING_2,children:[new D.TextRun({text:f.n+". "+(x.title||f.note.slice(0,80))})]}));
+    ch.push(P([L(SEV[f.sev],l),f.area?L(AREA[f.area],l):"",f.refs,f.psc?"PSC "+f.psc:"",f.due?R.due+": "+fmtDate(f.due,l):""].filter(Boolean).join("  ·  "),{bold:true,color:(SEVHEX[f.sev]||"#5b6876").slice(1)}));
+    const er=[];if(x.equip)er.push(new D.TextRun({text:R.equip+": ",bold:true}),new D.TextRun(x.equip+(x.loc?"    ":"")));if(x.loc)er.push(new D.TextRun({text:R.loc+": ",bold:true}),new D.TextRun(x.loc));if(er.length)ch.push(new D.Paragraph({children:er}));
+    if(x.desc)ch.push(new D.Paragraph({children:[new D.TextRun({text:R.desc+": ",bold:true}),new D.TextRun(x.desc)]}));else if(f.note)ch.push(P(f.note));
+    if(x.action)ch.push(new D.Paragraph({children:[new D.TextRun({text:R.action+": ",bold:true}),new D.TextRun(x.action)]}));
+    const runs=[];for(const p of f.photos){try{const d=await imgData(p.id);const s=Math.min(200/d.w,150/d.h);runs.push(new D.ImageRun({data:d.buf,transformation:{width:Math.round(d.w*s),height:Math.round(d.h*s)}}),new D.TextRun("  "));}catch(e){}}
+    if(runs.length)ch.push(new D.Paragraph({children:runs,spacing:{after:200}}));
+  }
+  ch.push(new D.Paragraph({spacing:{before:600},children:[new D.TextRun({text:R.sigI+": "+(i.inspector||"")+"\t\t\t"+R.sigM+": "+(i.master||"")})]}));
+  const doc=new D.Document({creator:"Sesli Denetim Raporu",title:R.title,styles:{default:{document:{run:{font:"Calibri",size:21}}}},sections:[{children:ch}]});
+  const blob=await D.Packer.toBlob(doc);await saveFile(fname(id,"docx"),blob);
+}
+function plainText(id){const l=S.repLang;const {i,fs,R}=repData(id,l);
+  const lines=[R.title+" — "+L(ITYPE[i.type],l),`${i.vessel||""}${i.imo?" (IMO "+i.imo+")":""} · ${i.port||""} · ${fmtDate(i.date,l)}`,"",R.sum+":",(i.summary||{})[l]||"","",R.findings+":"];
+  fs.forEach(f=>{const x=f[l].title?f[l]:f[l==="tr"?"en":"tr"];lines.push(`${f.n}. [${L(SEV[f.sev],l)}] ${x.title||f.note}`);if(x.equip||x.loc)lines.push("   "+[x.equip?R.equip+": "+x.equip:"",x.loc?R.loc+": "+x.loc:""].filter(Boolean).join(" · "));if(x.desc)lines.push("   "+R.desc+": "+x.desc);if(x.action)lines.push("   "+R.action+": "+x.action);if(f.refs)lines.push("   "+R.refs+": "+f.refs);});
+  return lines.join("\n");}
+function pruvaJson(id){const i=S.insps[id];
+  return JSON.stringify({format:"pruva-denetim",version:1,inspection:{vessel:i.vessel,imo:i.imo,flag:i.flag,vtype:i.vtype,port:i.port,date:i.date,type:i.type,inspector:i.inspector,master:i.master,summary:i.summary},
+    defects:findsOf(id).map(f=>({title:f.tr.title||f.en.title||f.note.slice(0,80),priority:SEV_PRUVA[f.sev]||"Orta",status:"Açık",due:f.due||"",source:`${L(ITYPE[i.type],"tr")} ${i.date} #${f.n}`,
+      imo:i.imo,severity:f.sev,area:f.area,refs:f.refs,psc:f.psc,tr:f.tr,en:f.en,note:f.note,photos:f.photos.map(p=>p.id)}))},null,2);}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  const ui=e.target.closest("[data-ui]");if(ui){S.ui=ui.dataset.ui;try{localStorage.setItem("sdr-ui",S.ui);}catch(x){}render();return;}
+  const g=e.target.closest("[data-go]");if(g){go(g.dataset.go);return;}
+  const sv=e.target.closest("[data-sev]");if(sv&&!sv.disabled){const f=S.finds[sv.dataset.id];f.sev=sv.dataset.sev;save("find",sv.dataset.id,0);renderFinding(sv.dataset.id);return;}
+  const elg=e.target.closest("[data-elang]");if(elg){S.editLang[elg.dataset.id]=elg.dataset.elang;renderFinding(elg.dataset.id);return;}
+  const rl=e.target.closest("[data-rlang]");if(rl){S.repLang=rl.dataset.rlang;const i=S.insps[S.cur];if(i&&S.canWrite&&i.repLang!==S.repLang){i.repLang=S.repLang;save("insp",S.cur);}render();return;}
+  const b=e.target.closest("[data-act]");if(!b||b.disabled)return;const id=b.dataset.id;
+  switch(b.dataset.act){
+    case "newInsp":newInspection();break;
+    case "addF":{const nid=newFinding(id);render();const el=document.getElementById("fc-"+nid);if(el)el.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"center"});break;}
+    case "mic":micClick(id);break;
+    case "write":writeUp(id);break;
+    case "trans":translateF(id);break;
+    case "ident":identify(id);break;
+    case "unlearn":{const k=b.dataset.k;if(S.armed!=="L"+k){S.armed="L"+k;render();setTimeout(()=>{if(S.armed==="L"+k){S.armed=null;render();}},4000);break;}
+      S.armed=null;const it=vesselLib(S.vkey).find(x=>x.k===k);if(it)it.fids.forEach(fi=>{S.finds[fi].noLearn=true;save("find",fi,0);});render();break;}
+    case "writeAll":writeAll(id);break;
+    case "sum":genSummary(id);break;
+    case "delPh":{const f=S.finds[id];f.photos.splice(+b.dataset.k,1);save("find",id,0);renderFinding(id);break;}
+    case "delF":if(S.armed!=="F"+id){S.armed="F"+id;renderFinding(id);setTimeout(()=>{if(S.armed==="F"+id){S.armed=null;renderFinding(id);}},4000);}
+      else{S.armed=null;const iid=S.finds[id].inspId;delete S.finds[id];if(Q["find"+id])Q["find"+id].dirty=false;S.db&&S.db.collection("find").doc(id).delete().catch(()=>{});renumber(iid);render();}break;
+    case "delInsp":if(S.armed!=="I"+id){S.armed="I"+id;render();setTimeout(()=>{if(S.armed==="I"+id){S.armed=null;if(S.view==="insp")render();}},4000);}
+      else{S.armed=null;for(const f of findsOf(id)){const k=fid(f);delete S.finds[k];S.db&&S.db.collection("find").doc(k).delete().catch(()=>{});}
+        delete S.insps[id];S.db&&S.db.collection("insp").doc(id).delete().catch(()=>{});go("list");}break;
+    case "pdf":markExported(id);exportPdf(id).catch(()=>toast(t("dlNone")));break;
+    case "docx":markExported(id);exportDocx(id).catch(()=>toast(t("dlNone")));break;
+    case "pruva":saveFile(fname(id,"json").replace(/_(tr|en)\.json$/,"_pruva.json"),pruvaJson(id));break;
+    case "copy":navigator.clipboard.writeText(plainText(id)).then(()=>toast(t("copied")),()=>toast(t("dlNone")));break;
+  }
+});
+document.addEventListener("input",e=>{
+  const x=e.target;
+  if(x.dataset.insp){const i=S.insps[S.cur];i[x.dataset.insp]=x.value;save("insp",S.cur);if(x.dataset.insp==="type"||x.dataset.insp==="status")render();return;}
+  if(x.dataset.note){const f=S.finds[x.dataset.note];f.note=x.value;save("find",x.dataset.note,800);updateWriteBtn(x.dataset.note);return;}
+  if(x.dataset.fx){const id=x.dataset.id,f=S.finds[id],l=S.editLang[id]||S.ui;f[l][x.dataset.fx]=x.value;f.stale=l;if(x.dataset.fx==="equip"||x.dataset.fx==="loc"){f.conf=f.conf||{};f.conf[x.dataset.fx]=true;}if(f.unsure&&f.unsure[x.dataset.fx]){delete f.unsure[x.dataset.fx];const lb=x.closest("label");if(lb){lb.classList.remove("unsure");const u=lb.querySelector(".unote");if(u)u.remove();}}save("find",id,800);
+    if(x.dataset.fx==="title"){const h=document.querySelector(`#fc-${id} .ftitle`);if(h)h.textContent=x.value;}return;}
+  if(x.dataset.ff){const f=S.finds[x.dataset.id];f[x.dataset.ff]=x.dataset.ff==="psc"?x.value.replace(/\D/g,""):x.value;save("find",x.dataset.id,600);return;}
+  if(x.dataset.sum){const i=S.insps[x.dataset.sum];i.summary=i.summary||{tr:"",en:""};i.summary[x.dataset.l]=x.value;save("insp",x.dataset.sum,800);return;}
+});
+document.addEventListener("change",e=>{const x=e.target;
+  if(x.dataset.photo&&x.files&&x.files.length){const files=[...x.files];x.value="";addPhotos(x.dataset.photo,files);}
+  if(x.dataset.ff==="area")save("find",x.dataset.id,0);
+  if(x.dataset.fx){const id=x.dataset.id;renderFinding(id);}
+});
+document.addEventListener("focusout",()=>{if(S.renderLater){setTimeout(()=>{if(!busyFocus()&&S.renderLater){S.renderLater=false;render();}},50);}});
+
+/* ---------- live data ---------- */
+function onRemote(col,snap){
+  const store=col==="insp"?S.insps:S.finds;let changed=false;
+  for(const ch of snap.docChanges()){const id=ch.doc.id;
+    if(ch.type==="removed"){if(store[id]){delete store[id];changed=true;}continue;}
+    if(pending(col,id))continue;
+    const d=ch.doc.data();const cur=store[id];
+    if(cur&&cur.updated&&d.updated&&d.updated<cur.updated)continue;
+    const nd=JSON.parse(JSON.stringify(d));
+    if(col==="find"){nd.tr=nd.tr||{title:"",desc:"",action:""};nd.en=nd.en||{title:"",desc:"",action:""};nd.photos=nd.photos||[];nd.note=nd.note||"";}
+    store[id]=nd;changed=true;}
+  if(!snap.metadata.fromCache){S["got"+col]=true;}
+  if(S.gotinsp&&S.gotfind&&!S.loaded){S.loaded=true;S.stale=false;clearTimeout(S.loadT);if(S.view==="wait"){route();return;}changed=true;}
+  if(changed){if(busyFocus())S.renderLater=true;else render();}
+}
+(async function boot(){
+  render();
+  S.loadT=setTimeout(()=>{if(!S.loaded){S.stale=true;render();}},10000);
+  const C=window.claude;
+  if(!C||!C.use){S.dbChecked=S.dictChecked=S.dlChecked=true;S.stale=true;render();return;}
+  const [db,user,assets,sample,dict,dl]=await Promise.all(["db","user","assets","sample","dictation","downloads"].map(n=>C.use(n).catch(()=>null)));
+  Object.assign(S,{db,user,assets,sample,dict,dl,dbChecked:true,dictChecked:true,dlChecked:true});
+  if(user){try{const w=await user.can("data.write");if(w===false)S.canWrite=false;S.myId=await user.id();}catch(e){}}
+  if(sample){try{const lim=await sample.limits();S.imgMax=lim&&lim.images?Math.min(4,lim.images.maxCount):4;S.imgLim=!!(lim&&lim.images);}catch(e){S.imgMax=4;}}
+  if(dict)wireDictation(dict);
+  if(!db){S.loaded=true;S.canWrite=false;clearTimeout(S.loadT);render();return;}
+  db.collection("insp").onSnapshot(s=>onRemote("insp",s),()=>{S.stale=true;render();});
+  db.collection("find").onSnapshot(s=>onRemote("find",s),()=>{S.stale=true;render();});
+  route();
+})();
+</script>
+</body>
+</html>

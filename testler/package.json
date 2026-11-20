@@ -1,0 +1,7 @@
+{
+  "name": "sesli-denetim-raporu-test",
+  "private": true,
+  "description": "Sahte Claude ortamıyla uçtan uca test (foto, dikte, Claude ile yazma, PDF/Word/Pruva çıktısı)",
+  "scripts": { "test": "node t.js" },
+  "dependencies": { "docx": "8.5.0", "pdfmake": "0.2.10", "playwright": "*" }
+}
